@@ -4,23 +4,34 @@ from logger import logger
 
 class BedrockClient:
     def __init__(self, model_id: str, region_name: str = "us-west-2"):
-        # Initialize Bedrock Chat client
+        """
+        Initialize Bedrock Chat client.
+        """
         self.client = ChatBedrock(model_id=model_id, region_name=region_name)
 
-    def summarize(self, prompt: str) -> str:
+    def get_rca(self, messages: list[str]) -> str:
         """
-        Sends the prompt to Bedrock and returns the raw output.
+        Sends Slack messages to Bedrock and requests a detailed RCA & QA learnings.
         """
+        # Combine messages into one prompt
+        prompt = (
+            "You are a technical analyst. Read the following Slack thread and produce:\n"
+            "1. Detailed RCA (Root Cause Analysis) of the issue.\n"
+            "2. Key QA learnings / improvements for the team.\n\n"
+            "Slack messages:\n\n"
+        )
+        prompt += "\n\n".join(messages)
+
         try:
-            # Use invoke instead of deprecated predict_messages
+            # Send to Bedrock
             response = self.client.invoke([HumanMessage(content=prompt)])
-            
-            # Extract the content
+
+            # Extract content
             text_output = getattr(response, "content", "")
             if not text_output:
                 logger.warning("Bedrock returned empty response")
             return text_output
 
         except Exception as e:
-            logger.error(f"Bedrock summarize failed: {e}")
+            logger.error(f"Bedrock RCA generation failed: {e}")
             return ""
