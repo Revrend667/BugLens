@@ -1,13 +1,13 @@
 import re
-from slack_sdk import WebClient
 import logging
+from slack_sdk import WebClient
 from jira_client import JiraClient  # New module
+import requests
 
 logger = logging.getLogger(__name__)
 
 USER_MENTION_RE = re.compile(r"<@[\w]+>")  # matches <@U02ARQEG6KS>
 JIRA_LINK_RE = re.compile(r"https?://([\w\-]+)\.atlassian\.net/browse/([\w\-]+-\d+)")
-
 SYSTEM_SUBTYPES = ["channel_join", "channel_leave"]
 
 class SlackScanner:
@@ -23,12 +23,32 @@ class SlackScanner:
             logger.error(f"Slack fetch failed: {e}")
             return [], None
 
+    def fetch_file_content(self, file_obj: dict) -> str:
+        """
+        Downloads the file content if accessible.
+        """
+        url = file_obj.get("url_private")
+        if not url:
+            return ""
+        headers = {"Authorization": f"Bearer {self.client.token}"}
+        try:
+            resp = requests.get(url, headers=headers)
+            if resp.status_code == 200:
+                return resp.text
+            else:
+                logger.warning(f"Failed to fetch file {file_obj.get('name')}: {resp.status_code}")
+        except Exception as e:
+            logger.error(f"Error downloading file {file_obj.get('name')}: {e}")
+        return ""
+
     def fetch_all_messages_dfs(self, channel: str):
         messages, cursor = self.fetch_messages(channel)
         all_messages = []
 
         def extract_text(msg):
             text_parts = [msg.get('text', '')]
+
+            # Process attachments
             for att in msg.get('attachments', []):
                 if att.get('fallback'):
                     text_parts.append(att['fallback'])
@@ -42,13 +62,19 @@ class SlackScanner:
                             if elem.get('text'):
                                 text_parts.append(elem['text'])
 
+            # Process files
+            for file_obj in msg.get("files", []):
+                file_text = self.fetch_file_content(file_obj)
+                if file_text:
+                    text_parts.append(f"--- Start of file: {file_obj.get('name')} ---\n{file_text}\n--- End of file ---")
+
             combined_text = "\n".join(filter(None, text_parts))
             combined_text = USER_MENTION_RE.sub("", combined_text).strip()
 
             # Expand JIRA links if jira_client is provided
             if self.jira_client:
                 for match in JIRA_LINK_RE.finditer(combined_text):
-                    server, issue_key = match.groups()
+                    _, issue_key = match.groups()
                     jira_details = self.jira_client.fetch_issue(issue_key)
                     if jira_details:
                         combined_text += f"\n\nJIRA [{issue_key}] Details:\n{jira_details}"
@@ -62,6 +88,7 @@ class SlackScanner:
             if text:
                 all_messages.append(text)
 
+            # Threaded replies
             if msg.get('thread_ts') == msg.get('ts') and int(msg.get('reply_count', 0)) > 0:
                 replies_cursor = None
                 while True:
