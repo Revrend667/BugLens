@@ -10,7 +10,7 @@ class BedrockClient:
         """
         self.client = ChatBedrock(model_id=model_id, region_name=region_name)
 
-    def get_rca(self, messages: List[str]) -> str:
+    def summarize(self, messages: List[str]) -> str:
         """
         Sends Slack messages to Bedrock and requests a detailed RCA & QA learnings.
         """
