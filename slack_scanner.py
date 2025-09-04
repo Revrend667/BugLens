@@ -19,12 +19,29 @@ class SlackScanner:
             logger.error(f"Slack fetch failed: {e}")
             return [], None
 
+    def extract_text(self, msg: dict):
+        """Extract text and files (images, links) from a Slack message."""
+        texts = []
+
+        # Add main text
+        if 'text' in msg and msg['text'].strip():
+            texts.append(msg['text'].strip())
+
+        # Add file URLs (images, documents, etc.)
+        for file in msg.get('files', []):
+            if 'url_private' in file:
+                texts.append(file['url_private'])
+
+        return texts
+
     def fetch_all_messages_dfs(self, channel: str):
         messages, cursor = self.fetch_messages(channel)
-        all_messages = []
+        all_messages_texts = []
 
         def dfs(msg):
-            all_messages.append(msg)
+            all_messages_texts.extend(self.extract_text(msg))
+
+            # If message is a thread parent, fetch replies
             if msg.get('thread_ts') == msg.get('ts') and int(msg.get('reply_count', 0)) > 0:
                 replies_cursor = None
                 while True:
@@ -35,7 +52,7 @@ class SlackScanner:
                             cursor=replies_cursor,
                             limit=200
                         )
-                        replies = resp.get('messages', [])[1:]
+                        replies = resp.get('messages', [])[1:]  # skip parent
                         for reply in replies:
                             dfs(reply)
                         replies_cursor = resp.get('response_metadata', {}).get('next_cursor')
@@ -48,4 +65,4 @@ class SlackScanner:
         for m in sorted(messages, key=lambda x: float(x['ts'])):
             dfs(m)
 
-        return sorted(all_messages, key=lambda x: float(x['ts']))
+        return all_messages_texts
