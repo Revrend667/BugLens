@@ -5,7 +5,13 @@ from logger import logger
 
 
 class BedrockClient:
-    def __init__(self, model_id: str, region_name: str = "us-west-2", chunk_size: int = 50000, max_context_chars: int = 200000):
+    def __init__(
+        self,
+        model_id: str,
+        region_name: str = "us-west-2",
+        chunk_size: int = 300_000,
+        max_context_chars: int = 5_000_000,
+    ):
         """
         Initialize Bedrock Chat client.
         :param model_id: Bedrock model ID (Claude, etc.)
@@ -73,11 +79,16 @@ class BedrockClient:
             return ""
 
         # Multi-level reduce: process in batches if combined size exceeds limit
-        while sum(len(s) for s in summaries) > self.max_context_chars and len(summaries) > 1:
-            logger.info("Intermediate summaries too large, applying multi-level reduce...")
+        while (
+            sum(len(s) for s in summaries) > self.max_context_chars
+            and len(summaries) > 1
+        ):
+            logger.info(
+                "Intermediate summaries too large, applying multi-level reduce..."
+            )
             new_summaries = []
             for i in range(0, len(summaries), 3):  # batch reduce in groups of 3
-                batch = summaries[i:i + 3]
+                batch = summaries[i : i + 3]
                 prompt = (
                     "You are a world-class Staff SDET. Merge the following partial analyses "
                     "into a single, **deduplicated** report:\n\n"
