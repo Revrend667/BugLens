@@ -5,7 +5,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 USER_MENTION_RE = re.compile(r"<@[\w]+>")  # matches <@U02ARQEG6KS>
-SYSTEM_MSG_RE = re.compile(r"^<@[\w]+> (has joined|has left) the channel$")
+
+# List of Slack system message subtypes to skip
+SYSTEM_SUBTYPES = [
+    "channel_join",
+    "channel_leave"
+]
 
 class SlackScanner:
     def __init__(self, token: str):
@@ -52,9 +57,12 @@ class SlackScanner:
             return combined_text
 
         def dfs(msg):
+            # Skip system messages based on subtype
+            if msg.get('subtype') in SYSTEM_SUBTYPES:
+                return
+
             text = extract_text(msg)
-            # Skip empty or system messages
-            if text and not SYSTEM_MSG_RE.match(text):
+            if text:
                 all_messages.append(text)
 
             # handle threaded replies
