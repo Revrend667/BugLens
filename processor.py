@@ -1,15 +1,22 @@
-from bedrock_client import BedrockClient
 from slack_scanner import SlackScanner
+from bedrock_client import BedrockClient
+from jira_client import JiraClient
 from logger import logger
 
 class SlackProcessor:
-    def __init__(self, slack_token: str, bedrock_model_id: str, jira_user=None, jira_token=None, jira_server=None):
-        self.scanner = SlackScanner(slack_token, jira_user, jira_token, jira_server)
+    def __init__(self, slack_token, bedrock_model_id, jira_user=None, jira_token=None, jira_server=None):
+        # Create JiraClient if credentials are provided
+        jira_client = JiraClient(server=jira_server, user=jira_user, token=jira_token)
+        
+        # Pass JiraClient instance to SlackScanner
+        self.slack_scanner = SlackScanner(token=slack_token, jira_client=jira_client)
         self.bedrock = BedrockClient(model_id=bedrock_model_id)
 
-    def process_channel(self, channel: str):
-        messages = self.scanner.fetch_all_messages_dfs(channel)
-        combined_text = "\n\n".join(messages)
-        logger.info(f"Fetched {len(messages)} messages from channel {channel}")
-        summary = self.bedrock.summarize(combined_text)
+    def process_channel(self, channel_id: str) -> str:
+        messages = self.slack_scanner.fetch_all_messages_dfs(channel_id)
+        prompt = "\n\n".join(messages)
+        if not prompt:
+            logger.info("No messages found in channel.")
+            return ""
+        summary = self.bedrock.summarize(prompt)
         return summary
