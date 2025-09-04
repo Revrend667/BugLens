@@ -5,8 +5,13 @@ from logger import logger
 
 
 class BedrockClient:
-    def __init__(self, model_id: str, region_name: str = "us-west-2",
-                 chunk_size: int = 400_000, max_chars: int = 5_000_000):
+    def __init__(
+        self,
+        model_id: str,
+        region_name: str = "us-west-2",
+        chunk_size: int = 300_000,
+        max_chars: int = 5_000_000,
+    ):
         """
         Initialize Bedrock Chat client.
         :param chunk_size: Approximate number of characters per chunk for summarization.
@@ -56,7 +61,9 @@ class BedrockClient:
             kept_chunks.insert(0, chunk)  # prepend to maintain chronological order
             running_total += chunk_len
 
-        logger.info(f"Reduced to {len(kept_chunks)} chunks, total length {running_total}")
+        logger.info(
+            f"Reduced to {len(kept_chunks)} chunks, total length {running_total}"
+        )
         return kept_chunks
 
     def summarize(self, messages: List[str]) -> str:
@@ -74,27 +81,27 @@ class BedrockClient:
             for i, chunk in enumerate(chunks):
                 logger.info(f"Processing chunk {i+1}/{len(chunks)} (size={len(chunk)})")
                 prompt = (
-                "You are a world-class Staff SDET with deep expertise in distributed systems, databases, "
-                "quality engineering, cloud infrastructure, and root cause analysis. Analyze the following Slack thread "
-                "chunk carefully and produce a **clear, structured, and detailed** report.\n\n"
-                f"Chunk {i+1}/{len(chunks)}:\n{chunk}\n\n"
-                "Your response must be **well-organized and comprehensive**, covering:\n\n"
-                "1. **Detailed Root Cause Analysis (RCA)**\n"
-                "   - Explain the primary cause(s) of the issue.\n"
-                "   - Include any contributing factors or secondary causes.\n"
-                "   - Highlight relevant evidence or symptoms from the thread.\n\n"
-                "2. **Key Developer Learnings / Improvements / Action Items**\n"
-                "   - List concrete coding, design, or architectural improvements.\n"
-                "   - Highlight prevention strategies (tests, monitoring, validation).\n"
-                "   - Provide actionable recommendations with clear next steps.\n\n"
-                "3. **Key QA Learnings / Improvements / Action Items**\n"
-                "   - Identify gaps in test coverage, test data, or validation.\n"
-                "   - Suggest improvements to automation, CI/CD, chaos testing, or observability.\n"
-                "   - Provide actionable recommendations for QA process improvements.\n\n"
-                "⚠️ Important:\n"
-                "- Always return the output in a **structured Markdown format** with numbered or bulleted lists.\n"
-                "- Be specific and actionable — avoid vague suggestions.\n"
-                "- Do not repeat the Slack messages; only return your analysis."
+                    "You are a world-class Staff SDET with deep expertise in distributed systems, databases, "
+                    "quality engineering, cloud infrastructure, and root cause analysis. Analyze the following Slack thread "
+                    "chunk carefully and produce a **clear, structured, and detailed** report.\n\n"
+                    f"Chunk {i+1}/{len(chunks)}:\n{chunk}\n\n"
+                    "Your response must be **well-organized and comprehensive**, covering:\n\n"
+                    "1. **Detailed Root Cause Analysis (RCA)**\n"
+                    "   - Explain the primary cause(s) of the issue.\n"
+                    "   - Include any contributing factors or secondary causes.\n"
+                    "   - Highlight relevant evidence or symptoms from the thread.\n\n"
+                    "2. **Key Developer Learnings / Improvements / Action Items**\n"
+                    "   - List concrete coding, design, or architectural improvements.\n"
+                    "   - Highlight prevention strategies (tests, monitoring, validation).\n"
+                    "   - Provide actionable recommendations with clear next steps.\n\n"
+                    "3. **Key QA Learnings / Improvements / Action Items**\n"
+                    "   - Identify gaps in test coverage, test data, or validation.\n"
+                    "   - Suggest improvements to automation, CI/CD, chaos testing, or observability.\n"
+                    "   - Provide actionable recommendations for QA process improvements.\n\n"
+                    "⚠️ Important:\n"
+                    "- Always return the output in a **structured Markdown format** with numbered or bulleted lists.\n"
+                    "- Be specific and actionable — avoid vague suggestions.\n"
+                    "- Do not repeat the Slack messages; only return your analysis."
                 )
                 response = self.client.invoke([HumanMessage(content=prompt)])
                 text_output = getattr(response, "content", "").strip()

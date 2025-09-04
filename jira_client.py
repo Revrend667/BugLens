@@ -3,6 +3,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class JiraClient:
     def __init__(self, server: str, user: str, token: str):
         if not server or not user or not token:
