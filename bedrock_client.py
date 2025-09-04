@@ -1,3 +1,4 @@
+from typing import List
 from langchain_aws import ChatBedrock
 from langchain.schema import HumanMessage
 from logger import logger
@@ -9,7 +10,7 @@ class BedrockClient:
         """
         self.client = ChatBedrock(model_id=model_id, region_name=region_name)
 
-    def get_rca(self, messages: list[str]) -> str:
+    def get_rca(self, messages: List[str]) -> str:
         """
         Sends Slack messages to Bedrock and requests a detailed RCA & QA learnings.
         """
