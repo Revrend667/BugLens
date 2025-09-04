@@ -17,7 +17,7 @@ class SlackScanner:
 
     def fetch_messages(self, channel: str, cursor: str = None):
         try:
-            resp = self.client.conversations_history(channel=channel, cursor=cursor, limit=200)
+            resp = self.client.conversations_history(channel=channel, cursor=cursor, limit=2000000)
             return resp.get('messages', []), resp.get('response_metadata', {}).get('next_cursor')
         except Exception as e:
             logger.error(f"Slack fetch failed: {e}")
