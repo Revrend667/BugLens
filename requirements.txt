@@ -1,2 +1,5 @@
-slack-sdk
-langchain-aws
+slack-sdk==3.27.0
+langchain-aws==0.0.26  # latest compatible version
+langchain-core==0.1.7
+boto3==1.28.59
+pydantic==1.10.12
