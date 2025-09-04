@@ -1,31 +1,25 @@
 from typing import List
-
-from langchain.schema import HumanMessage
 from langchain_aws import ChatBedrock
-
+from langchain.schema import HumanMessage
 from logger import logger
 
 
 class BedrockClient:
-    def __init__(
-        self,
-        model_id: str,
-        region_name: str = "us-west-2",
-        chunk_size: int = 300_000,
-        max_chars: int = 5_000_000,
-    ):
+    def __init__(self, model_id: str, region_name: str = "us-west-2", chunk_size: int = 50000, max_context_chars: int = 200000):
         """
         Initialize Bedrock Chat client.
-        :param chunk_size: Approximate number of characters per chunk for summarization.
-        :param max_chars: Maximum number of characters allowed across all chunks (hard cap).
+        :param model_id: Bedrock model ID (Claude, etc.)
+        :param region_name: AWS region
+        :param chunk_size: Max characters per chunk
+        :param max_context_chars: Maximum safe context length for reduce step
         """
         self.client = ChatBedrock(model_id=model_id, region_name=region_name)
         self.chunk_size = chunk_size
-        self.max_chars = max_chars
+        self.max_context_chars = max_context_chars
 
     def _chunk_messages(self, messages: List[str]) -> List[str]:
         """
-        Break messages into chunks that fit within chunk_size.
+        Break messages into character-bounded chunks.
         """
         chunks = []
         current_chunk = ""
@@ -34,108 +28,130 @@ class BedrockClient:
                 chunks.append(current_chunk)
                 current_chunk = msg
             else:
-                current_chunk = f"{current_chunk}\n\n{msg}" if current_chunk else msg
+                current_chunk += ("\n\n" if current_chunk else "") + msg
         if current_chunk:
             chunks.append(current_chunk)
         return chunks
 
-    def _enforce_global_limit_on_chunks(self, chunks: List[str]) -> List[str]:
+    def _analyze_chunk(self, chunk: str, idx: int, total: int) -> str:
         """
-        Enforce global max size across chunks.
-        If total > max_chars, keep dropping oldest chunks until under limit.
+        Summarize a single chunk with a strong, detailed RCA/QA prompt.
         """
-        total_chars = sum(len(c) for c in chunks)
-        if total_chars <= self.max_chars:
-            return chunks
-
-        logger.warning(
-            f"Total input size {total_chars} exceeds {self.max_chars}. "
-            f"Keeping latest chunks until within limit."
+        prompt = (
+            "You are a world-class Staff SDET specializing in distributed systems, "
+            "database internals, and infrastructure reliability. "
+            "Analyze the following Slack thread chunk and produce a **detailed, structured analysis**.\n\n"
+            f"Chunk {idx}/{total}:\n{chunk}\n\n"
+            "Return output in the following Markdown structure:\n\n"
+            "### 1. Root Cause Analysis (RCA)\n"
+            "- Explain the precise technical causes, contributing factors, cascading effects, and context.\n"
+            "- Be specific and avoid vague statements.\n\n"
+            "### 2. Developer Learnings / Improvements / Action Items\n"
+            "- Provide actionable, technical improvements (design, code, monitoring, resilience).\n"
+            "- Use a numbered Markdown list.\n\n"
+            "### 3. QA Learnings / Improvements / Action Items\n"
+            "- Provide concrete QA learnings (test gaps, automation, chaos testing, CI/CD, monitoring).\n"
+            "- Use a numbered Markdown list.\n\n"
+            "⚠️ Important Instructions:\n"
+            "- Do not repeat points in different words.\n"
+            "- Output must be detailed but **crisp and high-signal only**.\n"
+            "- Do not summarize the Slack messages — only return analysis."
         )
+        try:
+            response = self.client.invoke([HumanMessage(content=prompt)])
+            return getattr(response, "content", "").strip()
+        except Exception as e:
+            logger.error(f"Bedrock chunk analysis failed (chunk {idx}/{total}): {e}")
+            return ""
 
-        # Keep only recent chunks until size <= max_chars
-        kept_chunks = []
-        running_total = 0
-        for chunk in reversed(chunks):  # start from newest
-            chunk_len = len(chunk)
-            if running_total + chunk_len > self.max_chars:
-                break
-            kept_chunks.insert(0, chunk)  # prepend to maintain chronological order
-            running_total += chunk_len
+    def _merge_summaries(self, summaries: List[str]) -> str:
+        """
+        Merge multiple intermediate summaries into a final deduplicated RCA/QA report.
+        Uses multi-level reduce if summaries are too long.
+        """
+        if not summaries:
+            return ""
 
-        logger.info(
-            f"Reduced to {len(kept_chunks)} chunks, total length {running_total}"
+        # Multi-level reduce: process in batches if combined size exceeds limit
+        while sum(len(s) for s in summaries) > self.max_context_chars and len(summaries) > 1:
+            logger.info("Intermediate summaries too large, applying multi-level reduce...")
+            new_summaries = []
+            for i in range(0, len(summaries), 3):  # batch reduce in groups of 3
+                batch = summaries[i:i + 3]
+                prompt = (
+                    "You are a world-class Staff SDET. Merge the following partial analyses "
+                    "into a single, **deduplicated** report:\n\n"
+                    f"{chr(10).join(batch)}\n\n"
+                    "Return output in this exact structure:\n"
+                    "### 1. Root Cause Analysis (RCA)\n"
+                    "### 2. Developer Learnings / Improvements / Action Items\n"
+                    "### 3. QA Learnings / Improvements / Action Items\n\n"
+                    "⚠️ Instructions: Eliminate redundancy, do not rephrase the same points, "
+                    "and keep only unique, high-signal insights."
+                )
+                try:
+                    response = self.client.invoke([HumanMessage(content=prompt)])
+                    merged = getattr(response, "content", "").strip()
+                    if merged:
+                        new_summaries.append(merged)
+                except Exception as e:
+                    logger.error(f"Bedrock batch reduce failed: {e}")
+            summaries = new_summaries or summaries  # fallback to old if failed
+
+        # Final reduce
+        combined_prompt = (
+            "You are a world-class Staff SDET specializing in distributed systems, "
+            "database internals, and infrastructure reliability. "
+            "The following are **partial analyses** from multiple chunks of a Slack thread. "
+            "Your job is to produce a **final, unified, deduplicated report**.\n\n"
+            "Partial Summaries:\n"
+            f"{chr(10).join(summaries)}\n\n"
+            "Final output must strictly follow this Markdown structure:\n\n"
+            "### 1. Root Cause Analysis (RCA)\n"
+            "- Single, unified RCA covering all chunks.\n"
+            "- Include root causes, contributing factors, cascading failures, and missing safeguards.\n\n"
+            "### 2. Developer Learnings / Improvements / Action Items\n"
+            "- Deduplicated list of actionable developer improvements.\n"
+            "- Remove repeated or rephrased items.\n"
+            "- Use a numbered Markdown list.\n\n"
+            "### 3. QA Learnings / Improvements / Action Items\n"
+            "- Deduplicated list of QA-specific improvements.\n"
+            "- Remove repeated or rephrased items.\n"
+            "- Use a numbered Markdown list.\n\n"
+            "⚠️ Important:\n"
+            "- Eliminate redundancy across chunks.\n"
+            "- Do not restate Slack text.\n"
+            "- Keep output detailed but crisp."
         )
-        return kept_chunks
+        try:
+            response = self.client.invoke([HumanMessage(content=combined_prompt)])
+            return getattr(response, "content", "").strip()
+        except Exception as e:
+            logger.error(f"Bedrock final reduce failed: {e}")
+            return "\n".join(summaries)
 
     def summarize(self, messages: List[str]) -> str:
         """
-        Generates detailed RCA and QA learnings from Slack messages using Bedrock.
-        Uses chunking + map-reduce style summarization for large threads.
+        Main entry: Summarize messages into final RCA/QA learnings.
         """
         try:
             chunks = self._chunk_messages(messages)
-            chunks = self._enforce_global_limit_on_chunks(chunks)
+            logger.info("Processing %s chunks...", len(chunks))
 
             intermediate_summaries = []
-
-            # Map: summarize each chunk
             for i, chunk in enumerate(chunks):
-                logger.info(f"Processing chunk {i+1}/{len(chunks)} (size={len(chunk)})")
-                prompt = (
-                    "You are a world-class Staff SDET specializing in distributed systems, "
-                    "database internals, and large-scale infrastructure testing. Your task is to "
-                    "analyze the following Slack thread chunk and produce a highly detailed and "
-                    "technical Root Cause Analysis (RCA), followed by concrete learnings and "
-                    "action items for both Development and QA teams.\n\n"
-                    f"Chunk {i+1}/{len(chunks)}:\n{chunk}\n\n"
-                    "Your response must follow this **exact structure** in Markdown:\n\n"
-                    "### 1. Root Cause Analysis (RCA)\n"
-                    "- Explain the precise technical cause(s) of the issue.\n"
-                    "- Include contributing factors, cascading effects, and environmental conditions.\n"
-                    "- Reference evidence from the Slack thread to support the RCA.\n"
-                    "- Highlight why existing safeguards failed (if applicable).\n\n"
-                    "### 2. Developer Learnings / Improvements / Action Items\n"
-                    "- Identify gaps in design, implementation, or architecture.\n"
-                    "- Propose concrete fixes (e.g., better error handling, retries, schema changes, "
-                    "resource isolation, feature flags).\n"
-                    "- Suggest long-term preventive measures (e.g., design reviews, better API contracts, "
-                    "monitoring metrics, alert thresholds).\n"
-                    "- Output as a numbered or bulleted list with actionable, technical steps.\n\n"
-                    "### 3. QA Learnings / Improvements / Action Items\n"
-                    "- Identify missed test cases, blind spots in automation, and gaps in validation.\n"
-                    "- Propose test strategy improvements (e.g., chaos testing, failure injection, regression "
-                    "coverage, boundary testing).\n"
-                    "- Suggest CI/CD and observability enhancements (e.g., log analysis, anomaly detection, "
-                    "alerting improvements).\n"
-                    "- Output as a numbered or bulleted list with actionable, technical steps.\n\n"
-                    "⚠️ Important Instructions:\n"
-                    "- Be **technical, specific, and detailed** — avoid generic advice.\n"
-                    "- Use Markdown formatting so the output is structured and easy to parse.\n"
-                    "- Do **not** repeat the Slack messages — only return your expert analysis."
-                )
-                response = self.client.invoke([HumanMessage(content=prompt)])
-                text_output = getattr(response, "content", "").strip()
-                if text_output:
-                    intermediate_summaries.append(text_output)
-                else:
-                    logger.warning(f"Empty response for chunk {i+1}")
+                logger.info("Analyzing chunk %s/%s", i + 1, len(chunks))
+                summary = self._analyze_chunk(chunk, i + 1, len(chunks))
+                if summary:
+                    intermediate_summaries.append(summary)
 
-            # Reduce: merge summaries
-            if len(intermediate_summaries) == 1:
-                final_summary = intermediate_summaries[0]
-            else:
-                combined_prompt = (
-                    "You are a world-class Staff SDET. The following are summaries of "
-                    "different chunks of a Slack thread. Merge them into one comprehensive, "
-                    "detailed RCA and QA learnings report.\n\n"
-                    "Summaries:\n" + "\n\n".join(intermediate_summaries)
-                )
-                response = self.client.invoke([HumanMessage(content=combined_prompt)])
-                final_summary = getattr(response, "content", "").strip()
+            if not intermediate_summaries:
+                logger.warning("No intermediate summaries generated.")
+                return ""
 
+            final_summary = self._merge_summaries(intermediate_summaries)
             if not final_summary:
-                logger.warning("Final summary is empty")
+                logger.warning("Final Bedrock summary is empty")
             return final_summary
 
         except Exception as e:
