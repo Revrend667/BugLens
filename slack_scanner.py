@@ -5,8 +5,9 @@ from jira_client import JiraClient
 import requests
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
-USER_MENTION_RE = re.compile(r"<@[\w]+>")  # matches <@U02ARQEG6KS>
+USER_MENTION_RE = re.compile(r"<@[\w]+>")
 JIRA_LINK_RE = re.compile(r"https?://([\w\-]+)\.atlassian\.net/browse/([\w\-]+-\d+)")
 SYSTEM_SUBTYPES = ["channel_join", "channel_leave"]
 
@@ -16,36 +17,37 @@ class SlackScanner:
         self.jira_client = jira_client
 
     def fetch_messages(self, channel: str):
-        """
-        Fetch all messages from a channel using proper pagination.
-        """
+        """Fetch all messages incrementally with logging."""
         all_messages = []
         cursor = None
+        page = 1
 
         while True:
             try:
+                logger.info(f"Fetching page {page} of messages")
                 resp = self.client.conversations_history(channel=channel, cursor=cursor, limit=200)
                 messages = resp.get('messages', [])
+                logger.info(f"Fetched {len(messages)} messages in page {page}")
                 all_messages.extend(messages)
                 cursor = resp.get('response_metadata', {}).get('next_cursor')
                 if not cursor:
                     break
+                page += 1
             except Exception as e:
-                logger.error(f"Slack fetch failed: {e}")
+                logger.error(f"Slack fetch failed at page {page}: {e}")
                 break
 
-        logger.info(f"Fetched {len(all_messages)} messages from channel {channel}")
+        logger.info(f"Total messages fetched: {len(all_messages)}")
         return all_messages
 
     def fetch_file_content(self, file_obj: dict) -> str:
-        """
-        Downloads the file content if accessible, handling errors gracefully.
-        """
+        """Download file content with timeout and logging."""
         url = file_obj.get("url_private")
         if not url:
             return ""
         headers = {"Authorization": f"Bearer {self.client.token}"}
         try:
+            logger.info(f"Downloading file: {file_obj.get('name')}")
             resp = requests.get(url, headers=headers, timeout=30)
             resp.raise_for_status()
             return resp.text
@@ -57,13 +59,12 @@ class SlackScanner:
 
     def fetch_all_messages_dfs(self, channel: str):
         all_messages = []
-
         messages = self.fetch_messages(channel)
 
         def extract_text(msg):
             text_parts = [msg.get('text', '')]
 
-            # Process attachments
+            # Attachments
             for att in msg.get('attachments', []):
                 if att.get('fallback'):
                     text_parts.append(att['fallback'])
@@ -77,17 +78,18 @@ class SlackScanner:
                             if elem.get('text'):
                                 text_parts.append(elem['text'])
 
-            # Process attached files
+            # Files
             for file_obj in msg.get("files", []):
-                logger.info(f"Downloading file {file_obj.get('name')}")
                 file_text = self.fetch_file_content(file_obj)
                 if file_text:
-                    text_parts.append(f"--- Start of file: {file_obj.get('name')} ---\n{file_text}\n--- End of file ---")
+                    text_parts.append(
+                        f"--- Start of file: {file_obj.get('name')} ---\n{file_text}\n--- End of file ---"
+                    )
 
             combined_text = "\n".join(filter(None, text_parts))
             combined_text = USER_MENTION_RE.sub("", combined_text).strip()
 
-            # Expand JIRA links
+            # JIRA expansion
             if self.jira_client:
                 for match in JIRA_LINK_RE.finditer(combined_text):
                     _, issue_key = match.groups()
@@ -105,7 +107,6 @@ class SlackScanner:
             if text:
                 all_messages.append(text)
 
-            # Handle threaded replies
             if msg.get('thread_ts') == msg.get('ts') and int(msg.get('reply_count', 0)) > 0:
                 replies_cursor = None
                 while True:
@@ -114,6 +115,7 @@ class SlackScanner:
                             channel=channel, ts=msg['ts'], cursor=replies_cursor, limit=200
                         )
                         replies = resp.get('messages', [])[1:]  # skip root
+                        logger.info(f"Processing {len(replies)} replies for thread {msg['ts']}")
                         for reply in replies:
                             dfs(reply)
                         replies_cursor = resp.get('response_metadata', {}).get('next_cursor')
@@ -123,8 +125,8 @@ class SlackScanner:
                         logger.error(f"Fetching replies failed: {e}")
                         break
 
-        # Process messages in chronological order
-        for m in sorted(messages, key=lambda x: float(x['ts'])):
+        for idx, m in enumerate(sorted(messages, key=lambda x: float(x['ts'])), 1):
+            logger.info(f"Processing message {idx}/{len(messages)} ts={m['ts']}")
             dfs(m)
 
         logger.info(f"Processed total {len(all_messages)} messages including threads and attachments")
