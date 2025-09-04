@@ -2,8 +2,8 @@ from langchain_aws import ChatBedrock
 from logger import logger
 
 class BedrockClient:
-    def __init__(self, model_id: str, region_name: str = "us-west-2", temperature: float = 0.0):
-        self.client = ChatBedrock(model_id=model_id, region_name=region_name, temperature=temperature)
+    def __init__(self, model_id: str, region_name: str = "us-west-2"):
+        self.client = ChatBedrock(model_id=model_id, region_name=region_name)
 
     def summarize(self, prompt: str) -> str:
         """
