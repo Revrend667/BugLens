@@ -2,37 +2,79 @@ from typing import List
 from langchain_aws import ChatBedrock
 from langchain.schema import HumanMessage
 from logger import logger
+import math
 
 class BedrockClient:
-    def __init__(self, model_id: str, region_name: str = "us-west-2"):
+    def __init__(self, model_id: str, region_name: str = "us-west-2", chunk_size: int = 4000):
         """
         Initialize Bedrock Chat client.
+        chunk_size: Approximate number of characters per chunk for summarization.
         """
         self.client = ChatBedrock(model_id=model_id, region_name=region_name)
+        self.chunk_size = chunk_size
+
+    def _chunk_messages(self, messages: List[str]) -> List[str]:
+        """
+        Breaks the messages into chunks that fit the model's input limit.
+        """
+        chunks = []
+        current_chunk = ""
+        for msg in messages:
+            if len(current_chunk) + len(msg) + 2 > self.chunk_size:
+                chunks.append(current_chunk)
+                current_chunk = msg
+            else:
+                if current_chunk:
+                    current_chunk += "\n\n" + msg
+                else:
+                    current_chunk = msg
+        if current_chunk:
+            chunks.append(current_chunk)
+        return chunks
 
     def summarize(self, messages: List[str]) -> str:
         """
-        Sends Slack messages to Bedrock and requests a detailed RCA & QA learnings.
+        Generates detailed RCA and QA learnings from Slack messages using Bedrock.
+        Uses chunking & map-reduce style summarization for large threads.
         """
-        # Combine messages into one prompt
-        prompt = (
-            "You are a world class Staff SDET. Read the following Slack thread and produce:\n"
-            "1. Detailed RCA (Root Cause Analysis) of the issue.\n"
-            "2. Key Developer learnings / improvements for the Dev team.\n"
-            "23. Key QA learnings / improvements for the QA team.\n\n"
-            "Slack messages:\n\n"
-        )
-        prompt += "\n\n".join(messages)
-
         try:
-            # Send to Bedrock
-            response = self.client.invoke([HumanMessage(content=prompt)])
+            chunks = self._chunk_messages(messages)
+            intermediate_summaries = []
 
-            # Extract content
-            text_output = getattr(response, "content", "")
-            if not text_output:
-                logger.warning("Bedrock returned empty response")
-            return text_output
+            # Map: summarize each chunk individually
+            for i, chunk in enumerate(chunks):
+                prompt = (
+                    "You are a world-class Staff SDET. Analyze the following Slack thread "
+                    "chunk and produce a detailed RCA and QA learnings.\n\n"
+                    f"Chunk {i+1}/{len(chunks)}:\n{chunk}\n\n"
+                    "Return structured output with:\n"
+                    "1. Detailed Root Cause Analysis\n"
+                    "2. Key Developer Learnings / Improvements\n"
+                    "3. Key QA Learnings / Improvements"
+                )
+                response = self.client.invoke([HumanMessage(content=prompt)])
+                text_output = getattr(response, "content", "").strip()
+                if text_output:
+                    intermediate_summaries.append(text_output)
+                else:
+                    logger.warning(f"Bedrock returned empty response for chunk {i+1}")
+
+            # Reduce: combine intermediate summaries
+            if len(intermediate_summaries) == 1:
+                final_summary = intermediate_summaries[0]
+            else:
+                combined_prompt = (
+                    "You are a world-class Staff SDET. The following are summaries of "
+                    "different chunks of a Slack thread. Merge them into one comprehensive, detailed RCA and QA learnings report.\n\n"
+                    "Summaries:\n" + "\n\n".join(intermediate_summaries)
+                )
+                response = self.client.invoke([HumanMessage(content=combined_prompt)])
+                final_summary = getattr(response, "content", "").strip()
+
+            if not final_summary:
+                logger.warning("Final Bedrock summary is empty")
+
+            return final_summary
 
         except Exception as e:
             logger.error(f"Bedrock RCA generation failed: {e}")
