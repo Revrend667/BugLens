@@ -1,6 +1,8 @@
 from typing import List
-from langchain_aws import ChatBedrock
+
 from langchain.schema import HumanMessage
+from langchain_aws import ChatBedrock
+
 from logger import logger
 
 
