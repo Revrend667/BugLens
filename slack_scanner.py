@@ -1,7 +1,11 @@
+import re
 from slack_sdk import WebClient
 import logging
 
 logger = logging.getLogger(__name__)
+
+USER_MENTION_RE = re.compile(r"<@[\w]+>")  # matches <@U02ARQEG6KS>
+SYSTEM_MSG_RE = re.compile(r"^<@[\w]+> (has joined|has left) the channel$")
 
 class SlackScanner:
     def __init__(self, token: str):
@@ -30,11 +34,8 @@ class SlackScanner:
             text_parts = [msg.get('text', '')]
 
             for att in msg.get('attachments', []):
-                # fallback text
                 if att.get('fallback'):
                     text_parts.append(att['fallback'])
-
-                # blocks (used for link previews)
                 for block in att.get('blocks', []):
                     if block.get('type') == 'section':
                         text_obj = block.get('text', {})
@@ -45,10 +46,16 @@ class SlackScanner:
                             if elem.get('text'):
                                 text_parts.append(elem['text'])
 
-            return "\n".join(filter(None, text_parts))
+            combined_text = "\n".join(filter(None, text_parts))
+            # Remove user mentions
+            combined_text = USER_MENTION_RE.sub("", combined_text).strip()
+            return combined_text
 
         def dfs(msg):
-            all_messages.append(extract_text(msg))
+            text = extract_text(msg)
+            # Skip empty or system messages
+            if text and not SYSTEM_MSG_RE.match(text):
+                all_messages.append(text)
 
             # handle threaded replies
             if msg.get('thread_ts') == msg.get('ts') and int(msg.get('reply_count', 0)) > 0:
