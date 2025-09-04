@@ -1,8 +1,10 @@
-import re
 import logging
-from slack_sdk import WebClient
-from jira_client import JiraClient
+import re
+
 import requests
+from slack_sdk import WebClient
+
+from jira_client import JiraClient
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

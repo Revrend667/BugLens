@@ -1,6 +1,7 @@
 import argparse
-from processor import SlackProcessor
+
 from logger import logger
+from processor import SlackProcessor
 
 
 def main():

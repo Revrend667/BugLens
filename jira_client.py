@@ -1,5 +1,6 @@
-from jira import JIRA
 import logging
+
+from jira import JIRA
 
 logger = logging.getLogger(__name__)
 

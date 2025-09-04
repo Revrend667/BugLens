@@ -1,7 +1,7 @@
-from slack_scanner import SlackScanner
 from bedrock_client import BedrockClient
 from jira_client import JiraClient
 from logger import logger
+from slack_scanner import SlackScanner
 
 
 class SlackProcessor:
