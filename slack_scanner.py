@@ -8,9 +8,6 @@ class SlackScanner:
         self.client = WebClient(token=token)
 
     def fetch_messages(self, channel: str, cursor: str = None):
-        """
-        Fetch messages from a channel using conversations.history
-        """
         try:
             resp = self.client.conversations_history(
                 channel=channel,
@@ -23,29 +20,37 @@ class SlackScanner:
             return [], None
 
     def fetch_all_messages_dfs(self, channel: str):
-        """
-        Fetch all messages in a channel, including thread replies recursively
-        """
         messages, cursor = self.fetch_messages(channel)
         all_messages = []
 
         def extract_text(msg):
             """
-            Combine message text and unfurled attachments
+            Combine message text, unfurled attachments, and block text for link previews
             """
             text_parts = [msg.get('text', '')]
+
             for att in msg.get('attachments', []):
-                if att.get('is_msg_unfurl') or att.get('fallback'):
-                    text_parts.append(att.get('fallback', ''))
+                # fallback text
+                if att.get('fallback'):
+                    text_parts.append(att['fallback'])
+
+                # blocks (used for link previews)
+                for block in att.get('blocks', []):
+                    if block.get('type') == 'section':
+                        text_obj = block.get('text', {})
+                        if text_obj.get('text'):
+                            text_parts.append(text_obj['text'])
+                    elif block.get('type') == 'context':
+                        for elem in block.get('elements', []):
+                            if elem.get('text'):
+                                text_parts.append(elem['text'])
+
             return "\n".join(filter(None, text_parts))
 
         def dfs(msg):
-            """
-            Recursive DFS for threads
-            """
             all_messages.append(extract_text(msg))
 
-            # If message is thread root and has replies
+            # handle threaded replies
             if msg.get('thread_ts') == msg.get('ts') and int(msg.get('reply_count', 0)) > 0:
                 replies_cursor = None
                 while True:
