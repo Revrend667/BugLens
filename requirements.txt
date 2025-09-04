@@ -4,3 +4,4 @@ langchain-core
 boto3
 pydantic
 langchain
+jira

@@ -16,9 +16,10 @@ class BedrockClient:
         """
         # Combine messages into one prompt
         prompt = (
-            "You are a technical analyst. Read the following Slack thread and produce:\n"
+            "You are a world class Staff SDET. Read the following Slack thread and produce:\n"
             "1. Detailed RCA (Root Cause Analysis) of the issue.\n"
-            "2. Key QA learnings / improvements for the team.\n\n"
+            "2. Key Developer learnings / improvements for the Dev team.\n"
+            "23. Key QA learnings / improvements for the QA team.\n\n"
             "Slack messages:\n\n"
         )
         prompt += "\n\n".join(messages)

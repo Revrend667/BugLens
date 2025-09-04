@@ -1,20 +1,23 @@
 import re
-from slack_sdk import WebClient
 import logging
+from slack_sdk import WebClient
+from jira import JIRA
 
 logger = logging.getLogger(__name__)
 
-USER_MENTION_RE = re.compile(r"<@[\w]+>")  # matches <@U02ARQEG6KS>
+USER_MENTION_RE = re.compile(r"<@[\w]+>")  # matches <@U02ARQEG6KI>
+SYSTEM_SUBTYPES = ["channel_join", "channel_leave"]
 
-# List of Slack system message subtypes to skip
-SYSTEM_SUBTYPES = [
-    "channel_join",
-    "channel_leave"
-]
+# Matches any JIRA issue link like https://<company>.atlassian.net/browse/PROJECT-123
+JIRA_ISSUE_RE = re.compile(r"https://[\w.-]+\.atlassian\.net/browse/([A-Z]+-\d+)")
 
 class SlackScanner:
-    def __init__(self, token: str):
-        self.client = WebClient(token=token)
+    def __init__(self, slack_token: str, jira_client: JIRA = None):
+        """
+        jira_client: Optional JIRA instance for fetching issue details
+        """
+        self.client = WebClient(token=slack_token)
+        self.jira_client = jira_client
 
     def fetch_messages(self, channel: str, cursor: str = None):
         try:
@@ -28,13 +31,31 @@ class SlackScanner:
             logger.error(f"Slack fetch failed: {e}")
             return [], None
 
+    def enrich_with_jira(self, text: str) -> str:
+        """
+        If a JIRA link is found in the text, fetch summary and description
+        and append it to the text.
+        """
+        if not self.jira_client:
+            return text
+
+        matches = JIRA_ISSUE_RE.findall(text)
+        for issue_key in matches:
+            try:
+                issue = self.jira_client.issue(issue_key)
+                jira_text = f"\n[JIRA {issue.key}] {issue.fields.summary}\n{issue.fields.description}\n"
+                text += jira_text
+            except Exception as e:
+                logger.warning(f"Failed to fetch JIRA issue {issue_key}: {e}")
+        return text
+
     def fetch_all_messages_dfs(self, channel: str):
         messages, cursor = self.fetch_messages(channel)
         all_messages = []
 
         def extract_text(msg):
             """
-            Combine message text, unfurled attachments, and block text for link previews
+            Combine message text, attachments, and block text for link previews
             """
             text_parts = [msg.get('text', '')]
 
@@ -52,12 +73,13 @@ class SlackScanner:
                                 text_parts.append(elem['text'])
 
             combined_text = "\n".join(filter(None, text_parts))
-            # Remove user mentions
             combined_text = USER_MENTION_RE.sub("", combined_text).strip()
+            
+            # Enrich with JIRA content if applicable
+            combined_text = self.enrich_with_jira(combined_text)
             return combined_text
 
         def dfs(msg):
-            # Skip system messages based on subtype
             if msg.get('subtype') in SYSTEM_SUBTYPES:
                 return
 
