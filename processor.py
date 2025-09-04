@@ -18,5 +18,6 @@ class SlackProcessor:
         if not prompt:
             logger.info("No messages found in channel.")
             return ""
+        print(messages)
         summary = self.bedrock.summarize(prompt)
         return summary

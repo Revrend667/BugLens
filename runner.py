@@ -21,7 +21,7 @@ def main():
     )
 
     summary = processor.process_channel(args.channel)
-    logger.info("=== Bedrock Summary / RCA / QA Learnings ===")
+    logger.info("=== RCA and Learnings ===")
     print(summary)
 
 if __name__ == "__main__":
