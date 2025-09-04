@@ -45,7 +45,7 @@ class BedrockClient:
         """
         prompt = (
             "You are a world-class Staff SDET specializing in distributed systems, "
-            "database internals, infrastructure testing and reliability. "
+            "database internals, control plane, infrastructure testing and reliability. "
             "Analyze the following Slack thread chunk and produce a **detailed, structured analysis**.\n\n"
             f"Chunk {idx}/{total}:\n{chunk}\n\n"
             "Return output in the following Markdown structure:\n\n"
@@ -112,7 +112,7 @@ class BedrockClient:
         # Final reduce
         combined_prompt = (
             "You are a world-class Staff SDET specializing in distributed systems, "
-            "database internals, infrastructure testing and reliability. "
+            "database internals, control plane, infrastructure testing and reliability. "
             "The following are **partial analyses** from multiple chunks of a Slack thread. "
             "Your job is to produce a **final, unified, deduplicated report**.\n\n"
             "Partial Summaries:\n"
