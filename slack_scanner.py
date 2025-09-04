@@ -95,8 +95,7 @@ class SlackScanner:
                         resp = self.client.conversations_replies(
                             channel=channel,
                             ts=msg['ts'],
-                            cursor=replies_cursor,
-                            limit=200
+                            cursor=replies_cursor
                         )
                         replies = resp.get('messages', [])[1:]  # skip root
                         for reply in replies:
