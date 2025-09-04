@@ -6,7 +6,7 @@ from logger import logger
 
 class BedrockClient:
     def __init__(self, model_id: str, region_name: str = "us-west-2",
-                 chunk_size: int = 100_000, max_chars: int = 2_000_000):
+                 chunk_size: int = 200_000, max_chars: int = 5_000_000):
         """
         Initialize Bedrock Chat client.
         :param chunk_size: Approximate number of characters per chunk for summarization.
