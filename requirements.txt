@@ -1,0 +1,4 @@
+slack-sdk>=3.21.0
+requests>=2.31.0
+pydantic>=2.1.1
+PyYAML>=6.0
