@@ -3,3 +3,4 @@ langchain-aws
 langchain-core
 boto3
 pydantic
+langchain
