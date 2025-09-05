@@ -19,6 +19,21 @@ class SlackScanner:
         self.client = WebClient(token=token)
         self.jira_client = jira_client
 
+    def get_channel_id(self, channel_name):
+        channel_name = channel_name.lstrip("#")
+        cursor = None
+        while True:
+            resp = self.client.conversations_list(limit=1000, cursor=cursor)
+            for ch in resp["channels"]:
+                if ch["name"] == channel_name:
+                    return ch["id"]
+
+            cursor = resp.get("response_metadata", {}).get("next_cursor")
+            if not cursor:
+                break
+
+        raise ValueError(f"Channel '{channel_name}' not found")
+
     def fetch_messages(self, channel: str):
         """Fetch all messages incrementally with logging."""
         all_messages = []
@@ -68,11 +83,7 @@ class SlackScanner:
     def fetch_all_messages_dfs(self, channel: str):
         all_messages = []
 
-        channel_resp = self.client.api_call(
-            "conversations.lookupByName", params={"channel_name": channel}
-        )
-
-        channel = channel_resp["channel"]["id"]
+        channel = self.get_channel_id(channel)
 
         messages = self.fetch_messages(channel)
 
