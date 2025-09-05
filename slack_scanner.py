@@ -25,6 +25,9 @@ class SlackScanner:
         cursor = None
         page = 1
 
+        # Join the channel
+        self.client.conversations_join(channel=channel)
+
         while True:
             try:
                 logger.info(f"Fetching page {page} of messages")
@@ -64,6 +67,13 @@ class SlackScanner:
 
     def fetch_all_messages_dfs(self, channel: str):
         all_messages = []
+
+        channel_resp = self.client.api_call(
+            "conversations.lookupByName", params={"channel_name": channel}
+        )
+
+        channel = channel_resp["channel"]["id"]
+
         messages = self.fetch_messages(channel)
 
         def extract_text(msg):
