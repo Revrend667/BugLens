@@ -34,14 +34,22 @@ class SlackScanner:
 
         raise ValueError(f"Channel '{channel_name}' not found")
 
+    def safe_join_channel(self, channel_id):
+        try:
+            return self.client.conversations_join(channel=channel_id)
+        except Exception as e:
+            if hasattr(e, "response") and e.response["error"] == "is_archived":
+                print(f"⚠️ Channel {channel_id} is archived. Skipping join.")
+                return None
+            raise
+
     def fetch_messages(self, channel: str):
         """Fetch all messages incrementally with logging."""
         all_messages = []
         cursor = None
         page = 1
 
-        # Join the channel
-        self.client.conversations_join(channel=channel)
+        self.safe_join_channel(channel)
 
         while True:
             try:
