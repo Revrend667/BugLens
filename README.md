@@ -1,24 +1,36 @@
 # Slack Channel Analyzer
 
-A Python tool that analyzes Slack channel conversations using AWS Bedrock AI to generate detailed Root Cause Analysis (RCA) reports and actionable learnings for development and QA teams.
+A comprehensive tool for analyzing Slack channel conversations and generating detailed Root Cause Analysis (RCA) and QA learnings using AWS Bedrock AI models.
+
+## Overview
+
+This tool fetches messages from Slack channels (including threads and file attachments), optionally enriches them with JIRA issue details, and uses AWS Bedrock's AI models to generate structured analysis reports focused on technical learnings and improvements.
 
 ## Features
 
-- **Comprehensive Message Processing**: Fetches all messages, threads, attachments, and file contents from Slack channels
-- **JIRA Integration**: Automatically expands JIRA ticket references with full issue details
-- **AI-Powered Analysis**: Uses AWS Bedrock (Claude) to generate structured RCA reports
-- **Chunked Processing**: Handles large conversations by intelligently chunking content
-- **Multi-level Summarization**: Merges partial analyses into unified, deduplicated reports
+- **Complete Message Extraction**: Fetches all messages from Slack channels including:
+  - Regular messages and replies
+  - Thread conversations
+  - File attachments (with content download)
+  - Message attachments and blocks
+- **JIRA Integration**: Automatically fetches and includes JIRA issue details for linked tickets
+- **AI-Powered Analysis**: Uses AWS Bedrock models to generate structured RCA and QA learnings
+- **Chunked Processing**: Handles large message volumes by processing in manageable chunks
+- **Multi-level Summarization**: Applies hierarchical summarization for comprehensive analysis
 
 ## Architecture
 
-The tool consists of several key components:
-
-- **`SlackScanner`**: Fetches and processes Slack messages, threads, and attachments
-- **`JiraClient`**: Integrates with JIRA to fetch ticket details
-- **`BedrockClient`**: Handles AI analysis using AWS Bedrock
-- **`SlackProcessor`**: Orchestrates the entire analysis workflow
-- **`runner.py`**: Command-line interface for the tool
+```
+runner.py (CLI entry point)
+    ↓
+processor.py (Main orchestrator)
+    ↓
+slack_scanner.py (Slack API client)
+    ↓
+bedrock_client.py (AI analysis)
+    ↓
+jira_client.py (JIRA integration)
+```
 
 ## Installation
 
@@ -44,7 +56,7 @@ aws configure
 
 ```bash
 python runner.py \
-  --channel "C1234567890" \
+  --channel "#incident-channel" \
   --bedrock-model-id "anthropic.claude-3-sonnet-20240229-v1:0" \
   --slack-token "xoxb-your-slack-bot-token"
 ```
@@ -53,7 +65,7 @@ python runner.py \
 
 ```bash
 python runner.py \
-  --channel "C1234567890" \
+  --channel "#incident-channel" \
   --bedrock-model-id "anthropic.claude-3-sonnet-20240229-v1:0" \
   --slack-token "xoxb-your-slack-bot-token" \
   --jira-user "your-email@company.com" \
@@ -61,23 +73,20 @@ python runner.py \
   --jira-server "https://yourcompany.atlassian.net"
 ```
 
+### Command Line Arguments
+
+- `--channel` (required): Slack channel name or ID (e.g., "#incident-channel")
+- `--bedrock-model-id` (required): AWS Bedrock model ID
+- `--slack-token` (required): Slack Bot Token (starts with "xoxb-")
+- `--jira-user` (optional): JIRA username/email for authentication
+- `--jira-token` (optional): JIRA API token
+- `--jira-server` (optional): JIRA server URL
+
 ## Configuration
 
-### Required Parameters
+### Slack Setup
 
-- `--channel`: Slack channel ID (found in channel URL)
-- `--bedrock-model-id`: AWS Bedrock model ID (e.g., `anthropic.claude-3-sonnet-20240229-v1:0`)
-- `--slack-token`: Slack Bot Token with appropriate permissions
-
-### Optional Parameters
-
-- `--jira-user`: JIRA username/email for ticket expansion
-- `--jira-token`: JIRA API token
-- `--jira-server`: JIRA server URL
-
-## Slack Bot Setup
-
-1. Create a Slack app at [api.slack.com](https://api.slack.com/apps)
+1. Create a Slack App at https://api.slack.com/apps
 2. Add the following OAuth scopes:
    - `channels:history`
    - `channels:read`
@@ -91,55 +100,73 @@ python runner.py \
 3. Install the app to your workspace
 4. Copy the Bot User OAuth Token
 
+### JIRA Setup (Optional)
+
+1. Generate an API token at https://id.atlassian.com/manage-profile/security/api-tokens
+2. Use your JIRA email and the API token for authentication
+
+### AWS Bedrock Setup
+
+1. Ensure your AWS account has access to Bedrock
+2. Request access to the desired model (e.g., Claude 3 Sonnet)
+3. Configure AWS credentials using `aws configure` or environment variables
+
 ## Output Format
 
-The tool generates structured analysis reports in the following format:
+The tool generates structured Markdown reports with three main sections:
 
-```markdown
 ### 1. Root Cause Analysis (RCA)
-- Detailed technical analysis of issues and their causes
+- Detailed technical analysis of issues
 - Contributing factors and cascading effects
 - Missing safeguards and context
 
 ### 2. Developer Learnings / Improvements / Action Items
 - Actionable technical improvements
-- Numbered list of specific recommendations
+- Numbered list of specific action items
 
 ### 3. QA Learnings / Improvements / Action Items
-- QA-specific learnings and recommendations
-- Testing and validation improvements
-```
+- QA-specific learnings and improvements
+- Concrete action items for testing processes
 
 ## Technical Details
 
 ### Message Processing
 
-- Fetches messages using Slack's conversations API with pagination
-- Processes threaded conversations recursively
+- Fetches messages in batches of 200
+- Processes threads recursively
 - Downloads and includes file attachments
-- Expands JIRA ticket references with full details
 - Filters out system messages (joins/leaves)
+- Removes user mentions for cleaner analysis
 
 ### AI Analysis
 
-- Uses chunked processing for large conversations (300K character chunks)
-- Implements multi-level summarization for very large datasets
-- Applies deduplication to eliminate redundant insights
-- Focuses on high-signal technical analysis
+- Chunks messages into manageable sizes (300K characters by default)
+- Applies multi-level summarization for large datasets
+- Uses specialized prompts for technical analysis
+- Handles context length limitations through hierarchical reduction
 
 ### Error Handling
 
-- Graceful handling of API failures
+- Graceful handling of archived channels
+- Timeout protection for file downloads
+- Retry logic for API failures
 - Comprehensive logging throughout the process
-- Fallback mechanisms for partial failures
 
 ## Dependencies
 
-- `slack-sdk`: Slack API integration
+- `slack-sdk`: Slack API client
 - `langchain-aws`: AWS Bedrock integration
+- `langchain-core`: Core LangChain functionality
 - `boto3`: AWS SDK
-- `jira`: JIRA API integration
-- `requests`: HTTP requests for file downloads
+- `jira`: JIRA API client
+- `requests`: HTTP client for file downloads
+
+## Limitations
+
+- Requires appropriate Slack permissions
+- AWS Bedrock model access and costs apply
+- File download timeouts may occur for large files
+- Archived channels are automatically skipped
 
 ## Contributing
 
