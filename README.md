@@ -1,6 +1,6 @@
-# Slack Channel Analyzer
+# 🔍 BugLens
 
-A comprehensive tool for analyzing Slack channel conversations and generating detailed Root Cause Analysis (RCA) and QA learnings using AWS Bedrock AI models.
+**BugLens** is a comprehensive tool for analyzing **Slack channel conversations** and generating detailed **Root Cause Analysis (RCA)** and **QA learnings** using **AWS Bedrock AI models**.
 
 ## Overview
 
@@ -37,7 +37,7 @@ jira_client.py (JIRA integration)
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd slack-channel-analyzer
+cd BugLens
 ```
 
 2. Install dependencies:
