@@ -56,7 +56,7 @@ aws configure
 
 ```bash
 python runner.py \
-  --channel "#incident-channel" \
+  --channel "channel-name" \
   --bedrock-model-id "anthropic.claude-3-sonnet-20240229-v1:0" \
   --slack-token "xoxb-your-slack-bot-token"
 ```
@@ -65,7 +65,7 @@ python runner.py \
 
 ```bash
 python runner.py \
-  --channel "#incident-channel" \
+  --channel "channel-name" \
   --bedrock-model-id "anthropic.claude-3-sonnet-20240229-v1:0" \
   --slack-token "xoxb-your-slack-bot-token" \
   --jira-user "your-email@company.com" \
@@ -75,7 +75,7 @@ python runner.py \
 
 ### Command Line Arguments
 
-- `--channel` (required): Slack channel name or ID (e.g., "#incident-channel")
+- `--channel` (required): Slack channel name (e.g., "bug-101")
 - `--bedrock-model-id` (required): AWS Bedrock model ID
 - `--slack-token` (required): Slack Bot Token (starts with "xoxb-")
 - `--jira-user` (optional): JIRA username/email for authentication
